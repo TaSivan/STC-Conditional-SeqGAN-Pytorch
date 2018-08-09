@@ -1,7 +1,7 @@
 # Chinese Short Text Conversation using Conditional SeqGAN (Under Construction)
 
 ## Dataset
-This code use the Sina Weibo dataset release from [STC@NTCIR13](http://ntcirstc.noahlab.com.hk/STC2/stc-cn.htm).
+This code use the Sina Weibo dataset released by [STC@NTCIR13](http://ntcirstc.noahlab.com.hk/STC2/stc-cn.htm).
 
 1. `$ python scripts/word_segmentation.py`
     + execution time:  1:43:05.05
