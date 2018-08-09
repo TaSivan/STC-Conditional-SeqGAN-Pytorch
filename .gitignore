@@ -1,0 +1,5 @@
+.DS_Store
+.vscode/
+checkpoints/
+repository/
+__pycache__/
