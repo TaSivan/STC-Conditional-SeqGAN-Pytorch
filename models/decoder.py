@@ -113,13 +113,13 @@ class Decoder(nn.Module):
 from helper import PAD ,SOS, EOS, UNK
 from models.encoder import encoder
 from opts.gen_opts import LOAD_GEN_CHECKPOINT, gen_opts
-from opts.cuda_opts import USE_CUDA, USE_PARALLEL
+from opts.cuda_opts import USE_CUDA
 
 if LOAD_GEN_CHECKPOINT:
     from opts.gen_opts import gen_checkpoint
     from dataset.gen_dataset import gen_dataset
 
-    decoder = Decoder(encoder=encoder if not USE_PARALLEL else encoder.module, 
+    decoder = Decoder(encoder=encoder, 
                       embedding=nn.Embedding(len(gen_dataset.vocab.token2id), gen_opts.word_vec_size, padding_idx=PAD), 
                       attention = gen_opts.attention, 
                       dropout=gen_opts.dropout, 
@@ -130,15 +130,13 @@ if LOAD_GEN_CHECKPOINT:
 else:
     from embedding.load_emb import embedding
     
-    decoder = Decoder(encoder=encoder if not USE_PARALLEL else encoder.module, 
+    decoder = Decoder(encoder=encoder, 
                       embedding=embedding, 
                       attention = gen_opts.attention, 
                       dropout=gen_opts.dropout, 
                       fixed_embeddings=gen_opts.fixed_embeddings)
 
 if USE_CUDA:
-    if USE_PARALLEL:
-        decoder = nn.DataParallel(decoder)
     decoder.cuda()
 
 print(decoder)

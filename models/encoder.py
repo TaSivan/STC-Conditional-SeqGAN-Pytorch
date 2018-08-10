@@ -77,7 +77,7 @@ class Encoder(nn.Module):
 
 from helper import PAD ,SOS, EOS, UNK
 from opts.gen_opts import LOAD_GEN_CHECKPOINT, gen_opts
-from opts.cuda_opts import USE_CUDA, USE_PARALLEL
+from opts.cuda_opts import USE_CUDA
 
 if LOAD_GEN_CHECKPOINT:
     from opts.gen_opts import gen_checkpoint
@@ -99,8 +99,6 @@ else:
                       fixed_embeddings=gen_opts.fixed_embeddings)
 
 if USE_CUDA:
-    if USE_PARALLEL:
-        encoder = nn.DataParallel(encoder)  ## by default, device_ids is list of all device ids, and output_device uses device_ids[0]
     encoder.cuda()
 
 print(encoder)

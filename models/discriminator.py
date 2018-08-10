@@ -138,13 +138,11 @@ class Discriminator(nn.Module):
 
 from embedding.load_emb import embedding
 from opts.dis_opts import dis_opts
-from opts.cuda_opts import USE_CUDA, USE_PARALLEL
+from opts.cuda_opts import USE_CUDA
 
 discriminator = Discriminator(embedding=embedding,
                               dropout=dis_opts.dropout, 
                               fixed_embeddings=dis_opts.fixed_embeddings)
 
 if USE_CUDA:
-    if USE_PARALLEL:
-        discriminator = nn.DataParallel(discriminator)  ## by default, device_ids is list of all device ids, and output_device uses device_ids[0]
     discriminator.cuda()
