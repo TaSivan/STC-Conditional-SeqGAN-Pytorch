@@ -6,6 +6,7 @@ from datetime import datetime
 from opts.dis_opts import dis_opts
 from opts.cuda_opts import USE_CUDA
 from util.checkpoint import save_dis_checkpoint
+from trainer.dis_trainer import dis_trainer
 
 model_name = 'cnn_classifier'
 
@@ -44,12 +45,9 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
     save_total_corrects = 0
     save_total_num_data = 0
 
-    criterion = nn.NLLLoss(reduction='sum')
-
     for epoch in range(1, num_epochs+1):
         for batch_id, batch_data in tqdm(enumerate(dis_iter)):
             query_sents, response_sents, query_seqs, response_seqs, query_lens, response_lens, labels = batch_data
-
 
             ## does it matter???
             # # Ignore batch if there is a long sequence.
@@ -59,27 +57,12 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
             #     continue
 
             batch_size = query_seqs.size(0)
-            # assert(batch_size == response_seqs.size(0))
 
             # (batch,)
             labels = torch.tensor(labels)
 
-            if USE_CUDA:
-                query_seqs = query_seqs.cuda()
-                response_seqs = response_seqs.cuda()
-                labels = labels.cuda()
-
-            # -------------------------------------
-            # (batch_size, 2)
-            pred = discriminator(query_seqs, response_seqs)
-            loss = criterion(pred, labels)
-
-            num_corrects = (pred.max(1)[1] == labels).sum().item()
-
-            dis_optim.zero_grad()
-            loss.backward()
-            dis_optim.step()
-            # -------------------------------------
+            loss, num_corrects = dis_trainer(query_seqs, response_seqs, labels,
+                                             discriminator, dis_optim, USE_CUDA=USE_CUDA)
 
             global_step += 1
 
@@ -101,6 +84,7 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
                 print_total_loss = 0
                 print_total_corrects = 0
                 print_total_num_data = 0
+
                 del print_accuracy, print_loss
 
             if (batch_id + 1) % save_every_step == 0:
@@ -112,7 +96,40 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
                 save_total_loss = 0
                 save_total_corrects = 0
                 save_total_num_data = 0
+
                 del save_accuracy, save_loss
+
+
+            del query_sents, response_sents, query_seqs, response_seqs, query_lens, response_lens, labels
+
+
+        num_iters = dis_iter.__len__()
+
+        if num_iters % print_every_step != 0:
+            print_accuracy = print_total_corrects / print_total_num_data
+            print_loss = print_total_loss / print_total_num_data
+
+            print_statistics(epoch, num_epochs, batch_id + 1, dis_iter, global_step, print_loss, print_accuracy)
+
+            print_total_loss = 0
+            print_total_corrects = 0
+            print_total_num_data = 0
+
+            del print_accuracy, print_loss
+
+        if num_iters % save_every_step != 0:
+            save_accuracy = save_total_corrects / save_total_num_data
+            save_loss = save_total_loss / save_total_num_data
+
+            save_checkpoint_training(discriminator, dis_optim, epoch, num_iters, save_loss, save_accuracy, global_step)
+
+            save_total_loss = 0
+            save_total_corrects = 0
+            save_total_num_data = 0
+
+            del save_accuracy, save_loss
+
+        del num_iters
 
 ## -----------------------------------------------------------------------------------
 

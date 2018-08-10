@@ -9,7 +9,7 @@ from util.AttrDict import AttrDict
 from helper import PAD ,SOS, EOS, UNK
 
 class GenDataset(Dataset):
-    def __init__(self, training_pairs, vocab=None, counter=None, max_vocab_size=50000):
+    def __init__(self, training_pairs, vocab=None, counter=None, filter_vocab=True, max_vocab_size=50000):
         """ Note: If src_vocab, tgt_vocab is not given, it will build both vocabs.
             Args:
             - src_path, tgt_path: text file with tokenized sentences.
@@ -26,7 +26,7 @@ class GenDataset(Dataset):
             else:
                 self.counter = counter
             print('- Building source vocabulary...')
-            self.vocab = self.build_vocab(self.counter, max_vocab_size)
+            self.vocab = self.build_vocab(self.counter, filter_vocab, max_vocab_size)
         else:
             self.vocab = vocab
 
@@ -58,10 +58,15 @@ class GenDataset(Dataset):
             counter.update(r_sent)
         return counter
 
-    def build_vocab(self, counter, max_vocab_size):
+    def build_vocab(self, counter, filter_vocab, max_vocab_size):
         vocab = AttrDict()
         vocab.token2id = {'<PAD>': PAD, '<SOS>': SOS, '<EOS>': EOS, '<UNK>': UNK}
-        vocab.token2id.update({token: _id+4 for _id, (token, count) in tqdm(enumerate(counter.most_common(max_vocab_size)))})
+
+        if filter_vocab:
+            vocab.token2id.update({token: _id+4 for _id, (token, count) in tqdm(enumerate(counter.most_common(max_vocab_size)))})
+        else:
+            vocab.token2id.update({token: _id+4 for _id, (token, count) in tqdm(enumerate(counter.most_common()))})
+
         vocab.id2token = {v:k for k,v in tqdm(vocab.token2id.items())}
         return vocab
 
@@ -74,7 +79,11 @@ class GenDataset(Dataset):
 
 ## -----------------------------------------------------------------------------------
 
+from opts.gen_opts import gen_opts
+
 with open(os.path.join(REPO_DIR, "training_pairs_seg.pkl"), 'rb') as f:
     training_pairs = pickle.load(f)
 
-gen_dataset = GenDataset(training_pairs)
+gen_dataset = GenDataset(training_pairs=training_pairs,
+                         filter_vocab=gen_opts.filter_vocab,
+                         max_vocab_size=gen_opts.max_vocab_size)

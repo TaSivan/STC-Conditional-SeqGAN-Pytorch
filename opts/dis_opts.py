@@ -11,7 +11,7 @@ LOAD_DIS_CHECKPOINT = False
 
 if LOAD_DIS_CHECKPOINT:
     # Modify this path.
-    dis_checkpoint_path = os.path.join(DIS_CHECKPOINT_DIR, "<Enter your filename>")
+    dis_checkpoint_path = os.path.join(DIS_CHECKPOINT_DIR, "<Your filename>")
     dis_checkpoint = load_checkpoint(dis_checkpoint_path)
     dis_opts = dis_checkpoint['opts']
 

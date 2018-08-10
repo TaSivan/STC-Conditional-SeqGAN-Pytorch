@@ -7,6 +7,8 @@ def dis_collate_fn(data):
 
     def _pad_sequences(seqs):
         lens = [len(seq) for seq in seqs]
+        
+        # Kernel size of discriminator can't be greater than actual input size
         if max(lens) > dis_opts.conv_padding_len:
             padded_seqs = torch.zeros(len(seqs), max(lens)).long()
         else:

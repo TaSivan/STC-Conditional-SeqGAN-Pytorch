@@ -91,7 +91,7 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
 
             # Train.
             loss, num_words = gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens,
-                                            encoder, decoder, encoder_optim, decoder_optim, gen_opts, USE_CUDA)
+                                          encoder, decoder, encoder_optim, decoder_optim, gen_opts, USE_CUDA)
 
             # Statistics.
             global_step += 1
@@ -100,29 +100,53 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
             save_total_words += num_words
             print_total_words += num_words
 
+            # Print statistics.
+            if (batch_id + 1) % print_every_step == 0:
+                print_loss = print_total_loss / print_total_words
+
+                print_statistics(epoch, num_epochs, batch_id+1, gen_iter, global_step, print_loss)
+
+                print_total_loss = 0
+                print_total_words = 0
+
+                del print_loss
+
             # Save checkpoint.
             if (batch_id + 1) % save_every_step == 0:
-                save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, batch_id + 1, save_total_loss / save_total_words, global_step)
+                save_loss = save_total_loss / save_total_words
+
+                save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, batch_id + 1, save_loss, global_step)
+
                 save_total_loss = 0
                 save_total_words = 0
 
-            # Print statistics.
-            if (batch_id + 1) % print_every_step == 0:
-                print_statistics(epoch, num_epochs, batch_id+1, gen_iter, global_step, print_total_loss / print_total_words)
-                print_total_loss = 0
-                print_total_words = 0
+                del save_loss
 
             # Free memory
             del src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens, loss, num_words
 
-        num_iters = gen_iter.__len__()
-        save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, num_iters, save_total_loss / save_total_words, global_step)
-        print_statistics(epoch, num_epochs, num_iters, gen_iter, global_step, print_total_loss / print_total_words)
 
-        save_total_loss = 0
-        print_total_loss = 0
-        save_total_words = 0
-        print_total_words = 0
+        num_iters = gen_iter.__len__()
+
+        if num_iters % print_every_step != 0:
+            print_loss = print_total_loss / print_total_words
+
+            print_statistics(epoch, num_epochs, num_iters, gen_iter, global_step, print_loss)
+
+            print_total_loss = 0
+            print_total_words = 0
+
+            del print_loss
+
+        if num_iters % save_every_step != 0:
+            save_loss = save_total_loss / save_total_words
+
+            save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, num_iters, save_loss, global_step)
+
+            save_total_loss = 0
+            save_total_words = 0
+
+            del save_loss
 
         del num_iters
 

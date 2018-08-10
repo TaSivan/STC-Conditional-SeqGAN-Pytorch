@@ -7,11 +7,11 @@ from util.AttrDict import AttrDict
 from util.checkpoint import load_checkpoint
 
 # If enabled, load checkpoint.
-LOAD_GEN_CHECKPOINT = True
+LOAD_GEN_CHECKPOINT = False
 
 if LOAD_GEN_CHECKPOINT:
     # Modify this path.
-    gen_checkpoint_path = os.path.join(GEN_CHECKPOINT_DIR, "seq2seq_2018-08-09 12:17:24_epoch_2_iter_625_loss_5.65_step_1250.pt")
+    gen_checkpoint_path = os.path.join(GEN_CHECKPOINT_DIR, "<Your filename>")
     gen_checkpoint = load_checkpoint(gen_checkpoint_path)
     gen_opts = gen_checkpoint['opts']
 
@@ -37,3 +37,7 @@ else:
     gen_opts.batch_size = 16
     gen_opts.print_every_step = 500
     gen_opts.save_every_step = 5000
+    
+    # Configure vocabulary size
+    gen_opts.filter_vocab = False
+    gen_opts.max_vocab_size = 50000 # work only if filter_vocab is True
