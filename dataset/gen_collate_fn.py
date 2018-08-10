@@ -1,6 +1,6 @@
 import torch
 
-def collate_fn(data):
+def gen_collate_fn(data):
     """
     Creates mini-batch tensors from (src_sent, tgt_sent, src_seq, tgt_seq).
     We should build a custom collate_fn rather than using default collate_fn,

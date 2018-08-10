@@ -1,12 +1,12 @@
 import torch
 
 from loss.masked_cross_entropy import masked_cross_entropy
-from opts import USE_PARALLEL
+from opts.cuda_opts import USE_PARALLEL
 from helper import PAD ,SOS, EOS, UNK
 
 
 def gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens, encoder, 
-                decoder, encoder_optim, decoder_optim, opts, USE_CUDA=True):    
+                decoder, encoder_optim, decoder_optim, gen_opts, USE_CUDA=True):    
     
     # -------------------------------------
     # Prepare input and output placeholders
@@ -32,11 +32,11 @@ def gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens, encoder,
     # >> decoder_outputs = Variable(torch.zeros(max_tgt_len, batch_size, decoder.vocab_size))
     # Varying tensor size could cause GPU allocate a new memory causing OOM, 
     # so we intialize tensor with fixed size instead:
-    # `opts.max_seq_len` is a fixed number, unlike `max_tgt_len` always varys.
+    # `gen_opts.max_seq_len` is a fixed number, unlike `max_tgt_len` always varys.
     if USE_PARALLEL:
-        decoder_outputs = torch.zeros(opts.max_seq_len, batch_size, decoder.module.vocab_size)
+        decoder_outputs = torch.zeros(gen_opts.max_seq_len, batch_size, decoder.module.vocab_size)
     else:
-        decoder_outputs = torch.zeros(opts.max_seq_len, batch_size, decoder.vocab_size)
+        decoder_outputs = torch.zeros(gen_opts.max_seq_len, batch_size, decoder.vocab_size)
 
     # Move variables from CPU to GPU.
     if USE_CUDA:

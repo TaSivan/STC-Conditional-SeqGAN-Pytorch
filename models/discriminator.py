@@ -1,8 +1,3 @@
-import os
-import random
-
-import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,81 +7,144 @@ class Discriminator(nn.Module):
 
     architecture: Embedding >> Convolution >> Max-pooling >> Softmax
     """
-    def __init__(self, num_classes, vocab_size, emb_dim, dropout):
+    def __init__(self, embedding, dropout=0.75, fixed_embeddings=False):
         super(Discriminator, self).__init__()
-        self.emb = nn.Embedding(vocab_size, emb_dim)                    ## (5000, 300)
+
+        self.embedding = nn.Embedding(embedding.num_embeddings, embedding.embedding_dim)
+        self.embedding.weight.data.copy_(embedding.weight)
+        
+        if fixed_embeddings:
+            self.embedding.weight.requires_grad = False
+
+        self.word_vec_size = self.embedding.embedding_dim
 
         self.filter_sizes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20]
         self.num_filters = [100, 200, 200, 200, 200, 100, 100, 100, 100, 100, 160, 160]
 
-        self.convs = nn.ModuleList([
-            nn.Conv2d(1, n, (f, emb_dim)) for (n, f) in zip(self.num_filters, self.filter_sizes)
+        self.num_classes = 2
+
+        self.convs_q = nn.ModuleList([
+            nn.Conv2d(1, n, (f, embedding.embedding_dim)) for (n, f) in zip(self.num_filters, self.filter_sizes)
         ])
-        """
-        input: (16, 1, seq_len, 300)
 
-            filter_sizes resembles the "N" of N-grams
+        self.convs_r = nn.ModuleList([
+            nn.Conv2d(1, n, (f, embedding.embedding_dim)) for (n, f) in zip(self.num_filters, self.filter_sizes)
+        ])
 
-            (1, 100, ( 1, 300))  ->  (16, 100, seq_len, 1)       ->  (16, 100, seq_len)        
-            (1, 200, ( 2, 300))  ->  (16, 200, seq_len - 1, 1)   ->  (16, 200, seq_len - 1)
-            (1, 200, ( 3, 300))  ->  (16, 200, seq_len - 2, 1)   ->  (16, 200, seq_len - 2)
-            (1, 200, ( 4, 300))  ->  (16, 200, seq_len - 3, 1)   ->  (16, 200, seq_len - 3)
-            (1, 200, ( 5, 300))  ->  (16, 200, seq_len - 4, 1)   ->  (16, 200, seq_len - 4)
-            (1, 100, ( 6, 300))  ->  (16, 100, seq_len - 5, 1)   ->  (16, 100, seq_len - 5)
-            (1, 100, ( 7, 300))  ->  (16, 100, seq_len - 6, 1)   ->  (16, 100, seq_len - 6)
-            (1, 100, ( 8, 300))  ->  (16, 100, seq_len - 7, 1)   ->  (16, 100, seq_len - 7)
-            (1, 100, ( 9, 300))  ->  (16, 100, seq_len - 8, 1)   ->  (16, 100, seq_len - 8)
-            (1, 100, (10, 300))  ->  (16, 100, seq_len - 9, 1)   ->  (16, 100, seq_len - 9)
-            (1, 160, (15, 300))  ->  (16, 160, seq_len - 14, 1)  ->  (16, 160, seq_len - 14)
-            (1, 160, (20, 300))  ->  (16, 160, seq_len - 19, 1)  ->  (16, 160, seq_len - 19)
-        """        
-        self.highway = nn.Linear(sum(self.num_filters), sum(self.num_filters))    ## (1720, 1720)
-        self.dropout = nn.Dropout(p=dropout)                            ##  0.75
-        self.lin = nn.Linear(sum(self.num_filters), num_classes)             ## (1720, 2)
-        self.softmax = nn.LogSoftmax()
+        self.highway = nn.Linear(2 * sum(self.num_filters), 2 * sum(self.num_filters))
+        self.dropout = nn.Dropout(p=dropout)
+        self.lin = nn.Linear(2 * sum(self.num_filters), self.num_classes)
+        
         self.init_parameters()
     
-    def forward(self, x):
+    def forward(self, query_seqs, response_seqs):
         """
+        Ref:
+            http://www.aclweb.org/anthology/D14-1181
+            https://blog.csdn.net/chuchus/article/details/77847476
+            http://aclweb.org/anthology/D17-1065
+
         Args:
-            x: (batch_size * seq_len)
+            query_seqs:     (batch_size, query_max_seq_len)
+            response_seqs:  (batch_size, response_max_seq_len)
 
-        (16, 100) -> (16, 100, 300) -> (16, 1, 100, 300)
-            
-        (16, 1, 100, 300) -> convs -> pools -> pred
-        ├── (16, 100, 100, 1) -> (16, 100, 100) -> (16, 100, 1) -> (16, 100) ──|
-        ├── (16, 200,  99, 1) -> (16, 200,  99) -> (16, 200, 1) -> (16, 200) ──|
-        ├── (16, 200,  98, 1) -> (16, 200,  98) -> (16, 200, 1) -> (16, 200) ──|
-        ├── (16, 200,  97, 1) -> (16, 200,  97) -> (16, 200, 1) -> (16, 200) ──|
-        ├── (16, 200,  96, 1) -> (16, 200,  96) -> (16, 200, 1) -> (16, 200) ──|
-        ├── (16, 100,  95, 1) -> (16, 100,  95) -> (16, 100, 1) -> (16, 100) ──|   (cat)
-        ├── (16, 100,  94, 1) -> (16, 100,  94) -> (16, 100, 1) -> (16, 100) ──|───────────> (16, 1720)
-        ├── (16, 100,  93, 1) -> (16, 100,  93) -> (16, 100, 1) -> (16, 100) ──|
-        ├── (16, 100,  92, 1) -> (16, 100,  92) -> (16, 100, 1) -> (16, 100) ──|
-        ├── (16, 100,  91, 1) -> (16, 100,  91) -> (16, 100, 1) -> (16, 100) ──|
-        ├── (16, 160,  86, 1) -> (16, 160,  86) -> (16, 160, 1) -> (16, 160) ──|
-        ├── (16, 160,  81, 1) -> (16, 160,  81) -> (16, 160, 1) -> (16, 160) ──|
+            Assumed:
+                batch_size=16
+                max_seq_len=100
+                emb_dim=300
 
-        pred -> highway
-        (16, 1720) -> (16, 1720)
+            (16, 100) -> (16, 100, 300) -> (16, 1, 100, 300)
+                
+            (16, 1, 100, 64) 
+            ├──> convs -----> unsqueeze(3) ------> pools --------> pred ───────────|
+            ├── (16, 100, 100, 1) -> (16, 100, 100) -> (16, 100, 1) -> (16, 100) ──|
+            ├── (16, 200,  99, 1) -> (16, 200,  99) -> (16, 200, 1) -> (16, 200) ──|
+            ├── (16, 200,  98, 1) -> (16, 200,  98) -> (16, 200, 1) -> (16, 200) ──|
+            ├── (16, 200,  97, 1) -> (16, 200,  97) -> (16, 200, 1) -> (16, 200) ──|
+            ├── (16, 200,  96, 1) -> (16, 200,  96) -> (16, 200, 1) -> (16, 200) ──|
+            ├── (16, 100,  95, 1) -> (16, 100,  95) -> (16, 100, 1) -> (16, 100) ──|   (cat)
+            ├── (16, 100,  94, 1) -> (16, 100,  94) -> (16, 100, 1) -> (16, 100) ──|───────────> (16, 1720)
+            ├── (16, 100,  93, 1) -> (16, 100,  93) -> (16, 100, 1) -> (16, 100) ──|           = (16, num_filters_sum)
+            ├── (16, 100,  92, 1) -> (16, 100,  92) -> (16, 100, 1) -> (16, 100) ──|
+            ├── (16, 100,  91, 1) -> (16, 100,  91) -> (16, 100, 1) -> (16, 100) ──|
+            ├── (16, 160,  86, 1) -> (16, 160,  86) -> (16, 160, 1) -> (16, 160) ──|
+            ├── (16, 160,  81, 1) -> (16, 160,  81) -> (16, 160, 1) -> (16, 160) ──|
+
+        """
+
+
+        # Response
+
+        ## (batch_size, 1, max_seq_len, emb_dim)
+        emb_q = self.embedding(query_seqs).unsqueeze(1)  
+
+        ## [(batch_size, num_filter, conv_length)]
+        convs_q = [F.relu(conv(emb_q)).squeeze(3) for conv in self.convs_q]
+
+        ## [(batch_size, num_filter)]
+        pools_q = [F.max_pool1d(conv, conv.size(2)).squeeze(2) for conv in convs_q]
+
+        ## (batch_size, num_filters_sum)
+        pred_q = torch.cat(pools_q, 1)
+    
+
+        # Condition
+
+        ## (batch_size, 1, max_seq_len, emb_dim)
+        emb_r = self.embedding(response_seqs).unsqueeze(1)
+        
+        ## [(batch_size, num_filter, conv_length)]
+        convs_r = [F.relu(conv(emb_r)).squeeze(3) for conv in self.convs_r]
+
+        ## [(batch_size, num_filter)]
+        pools_r = [F.max_pool1d(conv, conv.size(2)).squeeze(2) for conv in convs_r]
+        
+        ## (batch_size, num_filters_sum)
+        pred_r = torch.cat(pools_r, 1)
+
+
+
+        ## (batch_size, 2 * num_filters_sum)
+        pred = torch.cat([pred_q, pred_r], 1)
+
+
+        """
 
         Highway Networks
         Ref: https://arxiv.org/pdf/1505.00387.pdf
              https://blog.csdn.net/guoyuhaoaaa/article/details/54093913
 
-        """ 
-        emb = self.emb(x).unsqueeze(1)  # batch_size * 1 * seq_len * emb_dim    ## (16, 1, 100, 300)
-        convs = [F.relu(conv(emb)).squeeze(3) for conv in self.convs]  # [batch_size * num_filter * length]
-        pools = [F.max_pool1d(conv, conv.size(2)).squeeze(2) for conv in convs] # [batch_size * num_filter]
-        pred = torch.cat(pools, 1)  # batch_size * num_filters_sum
-        highway = self.highway(pred)                          ## (16, 1720)
-        pred = F.sigmoid(highway) *  F.relu(highway) + (1. - F.sigmoid(highway)) * pred
-        pred = self.softmax(self.lin(self.dropout(pred)))     ## (16, 2)
+        """
+
+        ## (batch_size, 2 * num_filters_sum)
+        highway = self.highway(pred)
+        # pred = F.sigmoid(highway) *  F.relu(highway) + (1. - F.sigmoid(highway)) * pred
+        pred = torch.sigmoid(highway) *  F.relu(highway) + (1. - torch.sigmoid(highway)) * pred
+
+        ## (batch_size, num_classes=2)
+        pred = F.log_softmax(self.lin(self.dropout(pred)), dim=1)
         return pred
 
     def init_parameters(self):
-        nn.init.xavier_normal_(self.weight)
-        nn.init.constant_(self.bias, 0)
+        for param in self.parameters():
+            if param.requires_grad == True:
+                if param.ndimension() >= 2:
+                    nn.init.xavier_normal_(param)
+                else:
+                    nn.init.constant_(param, 0)
 
-        # for param in self.parameters():
-        #     param.data.uniform_(-0.05, 0.05)
+
+## -----------------------------------------------------------------------------------
+
+from embedding.load_emb import embedding
+from opts.dis_opts import dis_opts
+from opts.cuda_opts import USE_CUDA, USE_PARALLEL
+
+discriminator = Discriminator(embedding=embedding,
+                              dropout=dis_opts.dropout, 
+                              fixed_embeddings=dis_opts.fixed_embeddings)
+
+if USE_CUDA:
+    if USE_PARALLEL:
+        discriminator = nn.DataParallel(discriminator)  ## by default, device_ids is list of all device ids, and output_device uses device_ids[0]
+    discriminator.cuda()

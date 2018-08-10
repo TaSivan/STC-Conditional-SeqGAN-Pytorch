@@ -9,12 +9,15 @@ This code use the Sina Weibo dataset released by [STC@NTCIR13](http://ntcirstc.n
     + execution time:  3:21.60
 
 ## Pre-trained embedding model
-
 + Wiki
     + https://github.com/Kyubyong/wordvectors
-
 + Weibo
     + https://github.com/Embedding/Chinese-Word-Vectors
 
 1. `$ python scripts/embedding_combine.py`
     + execution time:  53.610
+
+
+## Requirements
++ PyTorch v0.4.1
++ Python 3.6

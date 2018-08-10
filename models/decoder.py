@@ -6,7 +6,7 @@ from util.sequence_mask import sequence_mask
 
 
 class Decoder(nn.Module):
-    def __init__(self, encoder, embedding=None, attention=True, bias=True, dropout=0.3, fixed_embeddings=False):
+    def __init__(self, encoder, embedding, attention=True, bias=True, dropout=0.3, fixed_embeddings=False):
         super(Decoder, self).__init__()
         
         self.hidden_size = encoder.hidden_size * encoder.num_directions
@@ -15,8 +15,7 @@ class Decoder(nn.Module):
         self.attention = attention
         
         self.embedding = nn.Embedding(embedding.num_embeddings, embedding.embedding_dim)
-        if embedding is not None:
-            self.embedding.weight.data.copy_(embedding.weight)
+        self.embedding.weight.data.copy_(embedding.weight)
 
         if fixed_embeddings:
             self.embedding.weight.requires_grad = False
@@ -26,10 +25,10 @@ class Decoder(nn.Module):
         
         self.rnn_type = encoder.rnn_type
         self.rnn = getattr(nn, self.rnn_type)(
-                            input_size=self.word_vec_size,
-                            hidden_size=self.hidden_size,
-                            num_layers=self.num_layers,
-                            dropout=self.dropout)
+                           input_size=self.word_vec_size,
+                           hidden_size=self.hidden_size,
+                           num_layers=self.num_layers,
+                           dropout=self.dropout)
         
         if self.attention:
             self.W_a = nn.Linear(encoder.hidden_size * encoder.num_directions,
@@ -80,7 +79,7 @@ class Decoder(nn.Module):
             concat_input = torch.cat([context_vector, decoder_output], -1)
 
             # (batch_size, seq_len=1, encoder_hidden_size * num_directions + decoder_hidden_size) -> (batch_size, seq_len=1, decoder_hidden_size)
-            concat_output = F.tanh(self.W_c(concat_input))
+            concat_output = torch.tanh(self.W_c(concat_input))
             
             # Prepare returns:
             # (batch_size, seq_len=1, max_src_len) => (batch_size, max_src_len)
@@ -113,38 +112,29 @@ class Decoder(nn.Module):
 
 from helper import PAD ,SOS, EOS, UNK
 from models.encoder import encoder
-from opts import LOAD_CHECKPOINT, opts, USE_CUDA, USE_PARALLEL
+from opts.gen_opts import LOAD_GEN_CHECKPOINT, gen_opts
+from opts.cuda_opts import USE_CUDA, USE_PARALLEL
 
-if LOAD_CHECKPOINT:
-    from opts import checkpoint
+if LOAD_GEN_CHECKPOINT:
+    from opts.gen_opts import gen_checkpoint
     from dataset.gen_dataset import gen_dataset
-    if USE_PARALLEL:
-        decoder = Decoder(encoder.module, 
-                            embedding=nn.Embedding(len(gen_dataset.vocab.token2id), opts.word_vec_size, padding_idx=PAD), 
-                            attention = opts.attention, 
-                            dropout=opts.dropout, 
-                            fixed_embeddings=opts.fixed_embeddings)
-    else:
-        decoder = Decoder(encoder, 
-                            embedding=nn.Embedding(len(gen_dataset.vocab.token2id), opts.word_vec_size, padding_idx=PAD), 
-                            attention = opts.attention, 
-                            dropout=opts.dropout, 
-                            fixed_embeddings=opts.fixed_embeddings)
-    decoder.load_state_dict(checkpoint['decoder_state_dict'])
+
+    decoder = Decoder(encoder=encoder if not USE_PARALLEL else encoder.module, 
+                      embedding=nn.Embedding(len(gen_dataset.vocab.token2id), gen_opts.word_vec_size, padding_idx=PAD), 
+                      attention = gen_opts.attention, 
+                      dropout=gen_opts.dropout, 
+                      fixed_embeddings=gen_opts.fixed_embeddings)
+
+    decoder.load_state_dict(gen_checkpoint['decoder_state_dict'])
+    
 else:
     from embedding.load_emb import embedding
-    if USE_PARALLEL:
-        decoder = Decoder(encoder.module, 
-                    embedding=embedding, 
-                    attention = opts.attention, 
-                    dropout=opts.dropout, 
-                    fixed_embeddings=opts.fixed_embeddings)
-    else:
-        decoder = Decoder(encoder, 
-                    embedding=embedding, 
-                    attention = opts.attention, 
-                    dropout=opts.dropout, 
-                    fixed_embeddings=opts.fixed_embeddings)
+    
+    decoder = Decoder(encoder=encoder if not USE_PARALLEL else encoder.module, 
+                      embedding=embedding, 
+                      attention = gen_opts.attention, 
+                      dropout=gen_opts.dropout, 
+                      fixed_embeddings=gen_opts.fixed_embeddings)
 
 if USE_CUDA:
     if USE_PARALLEL:

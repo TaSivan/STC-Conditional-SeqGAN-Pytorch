@@ -1,10 +1,11 @@
 from datetime import datetime
 from tqdm import tqdm
 
-from opts import LOAD_CHECKPOINT, opts, USE_CUDA
+from opts.gen_opts import LOAD_GEN_CHECKPOINT, gen_opts
+from opts.cuda_opts import USE_CUDA
 from trainer.gen_trainer import gen_trainer
 from evaluator.responsor import responsor
-from util.checkpoint import save_checkpoint
+from util.checkpoint import save_gen_checkpoint
 
 
 model_name = 'seq2seq'
@@ -34,8 +35,8 @@ def save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epo
     savetime = ('%s' % datetime.now()).split('.')[0]
     experiment_name = '{}_{}'.format(model_name, savetime)
 
-    checkpoint_path = save_checkpoint(opts, experiment_name, encoder, decoder, encoder_optim, decoder_optim,
-                                     epoch, num_iters, loss, global_step)
+    checkpoint_path = save_gen_checkpoint(gen_opts, experiment_name, encoder, decoder, encoder_optim,
+                                          decoder_optim, epoch, num_iters, loss, global_step)
 
     print('='*100)
     print('Save checkpoint to "{}".'.format(checkpoint_path))
@@ -46,9 +47,9 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
                 num_epochs, gen_iter, save_every_step=5000, print_every_step=500):
 
     # For saving checkpoint
-    if LOAD_CHECKPOINT:
-        from opts import checkpoint
-        global_step = checkpoint['global_step']
+    if LOAD_GEN_CHECKPOINT:
+        from opts.gen_opts import gen_checkpoint
+        global_step = gen_checkpoint['global_step']
     else:
         global_step = 0
 
@@ -79,15 +80,18 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
             # Unpack batch data
             src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens = batch_data
 
+            # Ignore the last batch if the batch size is less than that we set
+            # if len(src_lens) < batch_size: continue
+
             # Ignore batch if there is a long sequence.
             max_seq_len = max(src_lens + tgt_lens)
-            if max_seq_len > opts.max_seq_len:
-                print('[!] Ignore batch: sequence length={} > max sequence length={}'.format(max_seq_len, opts.max_seq_len))
+            if max_seq_len > gen_opts.max_seq_len:
+                print('[!] Ignore batch: sequence length={} > max sequence length={}'.format(max_seq_len, gen_opts.max_seq_len))
                 continue
 
             # Train.
             loss, num_words = gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens,
-                                            encoder, decoder, encoder_optim, decoder_optim, opts, USE_CUDA)
+                                            encoder, decoder, encoder_optim, decoder_optim, gen_opts, USE_CUDA)
 
             # Statistics.
             global_step += 1
@@ -128,18 +132,18 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
 
 from models.encoder import encoder
 from models.decoder import decoder
-from optimizer.optimizer import encoder_optim, decoder_optim
+from optimizer.gen_optimizer import encoder_optim, decoder_optim
 from dataset.gen_dataloader import gen_iter
 
-print_every_step = opts.print_every_step
-save_every_step = opts.save_every_step
-num_epochs = opts.num_epochs
+print_every_step = gen_opts.print_every_step
+save_every_step = gen_opts.save_every_step
+num_epochs = gen_opts.num_epochs
 
-train_gen(encoder,
-            decoder,
-            encoder_optim,
-            decoder_optim,
-            num_epochs,
-            gen_iter,
-            save_every_step=save_every_step,
-            print_every_step=print_every_step)
+train_gen(encoder=encoder,
+          decoder=decoder,
+          encoder_optim=encoder_optim,
+          decoder_optim=decoder_optim,
+          num_epochs=num_epochs,
+          gen_iter=gen_iter,
+          save_every_step=save_every_step,
+          print_every_step=print_every_step)
