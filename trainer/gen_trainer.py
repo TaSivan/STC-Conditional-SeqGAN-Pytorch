@@ -108,6 +108,4 @@ def gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens, encoder,
     decoder_optim.step()
 
     # return loss.item(), attention_weights
-    # return loss.item() / tgt_lens.float().sum()
-
     return loss.item(), tgt_lens.sum().item()

@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 
 from helper import PAD ,SOS, EOS, UNK
 from util.word_segment import ws
@@ -17,14 +19,15 @@ class Responsor(object):
         self.replace_unk = replace_unk
         self.USE_CUDA = USE_CUDA
 
-    def response(self, src_text):
+    def response(self, src_text, state=None):
         src_sent = ws(src_text)
+        state = ws(state) if state else None
         # with torch.no_grad():
-        response_seqs = self.forward(src_sent)
+        response_seqs = self.forward(src_sent, state)
         return " ".join(self.ids2tokens(response_seqs))
         # return "".join(self.ids2tokens(response_seqs))
 
-    def forward(self, src_sent):
+    def forward(self, src_sent, state=None):
         """
             e.g. 
                 Assumed w2id = {"<PAD>": 0, "<SOS>":1, "<EOS>": 2, "<UNK>": 3, "what": 4, "do": 5, "you": 6, "have": 7, "I": 8, "an": 9, "apple": 10}
@@ -36,11 +39,28 @@ class Responsor(object):
                 out_sent: ["I", "have", "an", "apple"]
                 out_seqs: [8, 7, 9, 10, 2]
 
+
+            state is used to do the monte carlo search
+
+            e.g.
+                src_sent: ["what", "do", "you", "have"]
+                src_seqs: [4, 5, 6, 7, 2]
+                src_lens: len(src_sent) + 1
+
+                state:      ["I", "have"]
+                state_seqs: [8, 7]
+
+                out_sent: ["I", "have", x, x, x, x, x, x, ..., x]
+                out_seqs: [8, 7, x, x, x, x, x, x, ..., x]
+
+                p.s. each `x` is sampled from the probability distribution of decoder's output
+                     so it may differ from the word which has highest score
+
         """
 
         src_seqs = torch.LongTensor([self.dataset.tokens2ids(tokens=src_sent,
-                                                            token2id=self.dataset.vocab.token2id,
-                                                            append_SOS=False, append_EOS=True)]).transpose(0,1) # shape: (seq_len, 1)
+                                                             token2id=self.dataset.vocab.token2id,
+                                                             append_SOS=False, append_EOS=True)]).transpose(0,1) # shape: (seq_len, 1)
         
         src_lens = torch.LongTensor([src_seqs.size(0)]) # shape: (seq_len + 1,)
 
@@ -79,8 +99,31 @@ class Responsor(object):
         # Initialize decoder's hidden state as encoder's last hidden state.
         decoder_hidden = encoder_hidden
         
+
+        state_len = 0
+
+        if state is not None:
+            state_seqs = torch.LongTensor([self.dataset.tokens2ids(tokens=state,
+                                                                   token2id=self.dataset.vocab.token2id,
+                                                                   append_SOS=False, append_EOS=False)]).transpose(0,1) # shape: (seq_len, 1)
+            
+            state_len = state_seqs.size(0)
+
+            for t in range(state_len):
+                decoder_output, decoder_hidden, attention_weights \
+                = self.decoder(input_seq, decoder_hidden, encoder_outputs, src_lens)
+
+                all_attention_weights[t] = attention_weights.squeeze(0).cpu()
+                
+                input_seq = state_seqs[t]
+                out_seqs.append(input_seq.item())
+
+                if self.USE_CUDA: 
+                    input_seq = input_seq.cuda()
+
+
         # Run through decoder one time step at a time.
-        for t in range(self.max_seq_len):
+        for t in range(state_len, self.max_seq_len):
             
             # decoder returns:
             # - decoder_output   : (batch_size, vocab_size)
@@ -93,10 +136,14 @@ class Responsor(object):
             # .squeeze(0): remove `batch_size` dimension since batch_size=1
             all_attention_weights[t] = attention_weights.squeeze(0).cpu()
             
-            
-            # Choose top word from decoder's output
-            prob, token_id = decoder_output.data.topk(1)    # (batch_size=1, 1), (batch_size=1, 1)
-            token_id = token_id[0].item()                   # get value
+            if state:
+                # Sample a word from the probability distribution
+                prob = F.softmax(decoder_output, dim=1)     # (batch_size=1, vocab_size)
+                token_id = prob.multinomial(1).item()       # get value
+            else:
+                # Choose top word from decoder's output
+                prob, token_id = decoder_output.topk(1)     # (batch_size=1, 1), (batch_size=1, 1)
+                token_id = token_id[0].item()               # get value
             
             if token_id == EOS:
                 break
@@ -105,13 +152,13 @@ class Responsor(object):
                 score, idx = all_attention_weights[t].max(0)
                 token_id = src_sent[idx]
     
-            out_seqs.append(token_id)      
-            
+            out_seqs.append(token_id)       
             
             # Next input is chosen word
             input_seq = torch.LongTensor([token_id])
             if self.USE_CUDA: 
                 input_seq = input_seq.cuda()
+
 
         return out_seqs
 
