@@ -1,24 +1,23 @@
-from dataset.dis_dataset import dis_dataset
 from opts.dis_opts import dis_opts
 
 import torch
 
+def _pad_sequences(seqs):
+    lens = [len(seq) for seq in seqs]
+    
+    # Kernel size of discriminator can't be greater than actual input size
+    if max(lens) > dis_opts.conv_padding_len:
+        padded_seqs = torch.zeros(len(seqs), max(lens)).long()
+    else:
+        padded_seqs = torch.zeros(len(seqs), dis_opts.conv_padding_len).long()
+    
+    for i, seq in enumerate(seqs):
+        end = lens[i]
+        padded_seqs[i, :end] = torch.LongTensor(seq[:end])
+    return padded_seqs, lens
+
+
 def dis_collate_fn(data):
-
-    def _pad_sequences(seqs):
-        lens = [len(seq) for seq in seqs]
-        
-        # Kernel size of discriminator can't be greater than actual input size
-        if max(lens) > dis_opts.conv_padding_len:
-            padded_seqs = torch.zeros(len(seqs), max(lens)).long()
-        else:
-            padded_seqs = torch.zeros(len(seqs), dis_opts.conv_padding_len).long()
-        
-        for i, seq in enumerate(seqs):
-            end = lens[i]
-            padded_seqs[i, :end] = torch.LongTensor(seq[:end])
-        return padded_seqs, lens
-
     query_sents, response_sents, query_seqs, response_seqs, labels = zip(*data)
 
     
@@ -27,3 +26,4 @@ def dis_collate_fn(data):
     response_seqs, response_lens = _pad_sequences(response_seqs)   ## (batch, max_seq_len), (batch)
 
     return query_sents, response_sents, query_seqs, response_seqs, query_lens, response_lens, labels
+

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 from helper import PAD ,SOS, EOS, UNK
 from util.word_segment import ws
 
@@ -57,11 +56,9 @@ class Responsor(object):
                      so it may differ from the word which has highest score
 
         """
+        # shape: (seq_len, 1)
+        src_seqs = torch.LongTensor([self.tokens2ids(src_sent)]).transpose(0,1)
 
-        src_seqs = torch.LongTensor([self.dataset.tokens2ids(tokens=src_sent,
-                                                             token2id=self.dataset.vocab.token2id,
-                                                             append_SOS=False, append_EOS=True)]).transpose(0,1) # shape: (seq_len, 1)
-        
         src_lens = torch.LongTensor([src_seqs.size(0)]) # shape: (seq_len + 1,)
 
 
@@ -78,12 +75,6 @@ class Responsor(object):
             src_seqs = src_seqs.cuda()
             src_lens = src_lens.cuda()
             input_seq = input_seq.cuda()
-            
-        # -------------------------------------
-        # Evaluation mode (disable dropout)
-        # -------------------------------------
-        self.encoder.eval()
-        self.decoder.eval()
         
         # -------------------------------------
         # Forward encoder
@@ -103,9 +94,15 @@ class Responsor(object):
         state_len = 0
 
         if state is not None:
-            state_seqs = torch.LongTensor([self.dataset.tokens2ids(tokens=state,
-                                                                   token2id=self.dataset.vocab.token2id,
-                                                                   append_SOS=False, append_EOS=False)]).transpose(0,1) # shape: (seq_len, 1)
+
+            # -------------------------------------
+            # Training mode (enable dropout)
+            # -------------------------------------
+            self.encoder.train()
+            self.decoder.train()
+
+            # shape: (seq_len, 1)
+            state_seqs = torch.LongTensor([state]).transpose(0,1)
             
             state_len = state_seqs.size(0)
 
@@ -120,6 +117,14 @@ class Responsor(object):
 
                 if self.USE_CUDA: 
                     input_seq = input_seq.cuda()
+        else:
+
+            # -------------------------------------
+            # Evaluation mode (disable dropout)
+            # -------------------------------------
+
+            self.encoder.eval()
+            self.decoder.eval()
 
 
         # Run through decoder one time step at a time.
@@ -146,25 +151,34 @@ class Responsor(object):
                 token_id = token_id[0].item()               # get value
             
             if token_id == EOS:
+                if state: out_seqs.append(token_id)
                 break
             elif token_id == UNK and self.replace_unk:
                 # Replace unk by selecting the source token with the highest attention score.
                 score, idx = all_attention_weights[t].max(0)
-                token_id = src_sent[idx]
+                token_id = src_seqs[idx]
     
-            out_seqs.append(token_id)       
+            out_seqs.append(token_id)
             
             # Next input is chosen word
             input_seq = torch.LongTensor([token_id])
             if self.USE_CUDA: 
                 input_seq = input_seq.cuda()
 
-
         return out_seqs
+
 
     def ids2tokens(self, seqs):
         return [self.dataset.vocab.id2token[id] for id in seqs]
 
+
+    def tokens2ids(self, tokens, append_SOS=False, append_EOS=True):
+        return self.dataset.tokens2ids(tokens=tokens,
+                                       token2id=self.dataset.vocab.token2id,
+                                       append_SOS=append_SOS, append_EOS=append_EOS)
+
+
+## -----------------------------------------------------------------------------------
 
 from models.encoder import encoder
 from models.decoder import decoder

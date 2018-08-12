@@ -11,14 +11,14 @@ from helper import PAD ,SOS, EOS, UNK
 class GenDataset(Dataset):
     def __init__(self, training_pairs, vocab=None, counter=None, filter_vocab=True, max_vocab_size=50000):
         """ Note: If src_vocab, tgt_vocab is not given, it will build both vocabs.
-            Args:
+            Args: 
             - src_path, tgt_path: text file with tokenized sentences.
             - src_vocab, tgt_vocab: data structure is same as self.build_vocab().
         """
         print('='*100)
         print('- Loading and tokenizing training sentences...')
         self.src_sents, self.tgt_sents = self.load_sents(training_pairs)
-
+    
         if vocab is None:
             if counter is None:
                 print('- Building source counter...')
@@ -29,16 +29,16 @@ class GenDataset(Dataset):
             self.vocab = self.build_vocab(self.counter, filter_vocab, max_vocab_size)
         else:
             self.vocab = vocab
-
+                        
         print('='*100)
         print('Dataset Info:')
         print('- Number of training pairs: {}'.format(self.__len__()))
         print('- Vocabulary size: {}'.format(len(self.vocab.token2id)))
         print('='*100 + '\n')
-
+    
     def __len__(self):
         return len(self.src_sents)
-
+    
     def __getitem__(self, index):
         src_sent = self.src_sents[index]
         tgt_sent = self.tgt_sents[index]
@@ -46,7 +46,7 @@ class GenDataset(Dataset):
         tgt_seq = self.tokens2ids(tgt_sent, self.vocab.token2id, append_SOS=False, append_EOS=True)
 
         return src_sent, tgt_sent, src_seq, tgt_seq
-
+    
     def load_sents(self, sent_pairs):
         src_sents, tgt_sents = zip(*sent_pairs)
         return src_sents, tgt_sents
@@ -57,19 +57,19 @@ class GenDataset(Dataset):
             counter.update(p_sent)
             counter.update(r_sent)
         return counter
-
+    
     def build_vocab(self, counter, filter_vocab, max_vocab_size):
         vocab = AttrDict()
         vocab.token2id = {'<PAD>': PAD, '<SOS>': SOS, '<EOS>': EOS, '<UNK>': UNK}
-
+        
         if filter_vocab:
             vocab.token2id.update({token: _id+4 for _id, (token, count) in tqdm(enumerate(counter.most_common(max_vocab_size)))})
         else:
             vocab.token2id.update({token: _id+4 for _id, (token, count) in tqdm(enumerate(counter.most_common()))})
-
-        vocab.id2token = {v:k for k,v in tqdm(vocab.token2id.items())}
+        
+        vocab.id2token = {v:k for k,v in tqdm(vocab.token2id.items())}    
         return vocab
-
+    
     def tokens2ids(self, tokens, token2id, append_SOS=True, append_EOS=True):
         seq = []
         if append_SOS: seq.append(SOS)

@@ -33,8 +33,8 @@ else:
     
     # Configure training
     gen_opts.max_seq_len = 100 # max sequence length to prevent OOM.
-    gen_opts.num_epochs = 5
     gen_opts.batch_size = 16
+    gen_opts.num_epochs = 1
     gen_opts.print_every_step = 500
     gen_opts.save_every_step = 5000
     

@@ -33,6 +33,7 @@ def load_emb(pretrained_emb, pretrained_w2id, vocab):
         
     return embedding
 
+## -----------------------------------------------------------------------------------
 
 with open(os.path.join(REPO_DIR, "wiki_weibo_embedding_normalize.npy"), "rb") as f:
     pretrained_embedding_model = np.load(f)

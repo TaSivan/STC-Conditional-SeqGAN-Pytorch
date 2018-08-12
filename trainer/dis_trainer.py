@@ -22,6 +22,8 @@ def dis_trainer(query_seqs, response_seqs, labels, discriminator, dis_optim, USE
         labels = labels.cuda()
 
     # (batch_size, 2)
+    # query_seqs:    (batch, max_seq_len)
+    # response_seqs: (batch, max_seq_len)
     pred = discriminator(query_seqs, response_seqs)
 
     loss = criterion(pred, labels)

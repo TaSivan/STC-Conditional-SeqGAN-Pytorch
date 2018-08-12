@@ -29,7 +29,10 @@ else:
     # Configure training
     # dis_opts.max_seq_len = 100 # max sequence length to prevent OOM.
     dis_opts.conv_padding_len = 20
-    dis_opts.num_epochs = 5
     dis_opts.batch_size = 16
+    dis_opts.num_epochs = 2
     dis_opts.print_every_step = 500
     dis_opts.save_every_step = 5000
+    
+    # Configure adversarial training
+    dis_opts.adversarial_num_epoch = 2

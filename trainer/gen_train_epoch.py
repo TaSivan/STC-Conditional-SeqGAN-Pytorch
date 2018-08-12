@@ -13,7 +13,7 @@ observe_query = "没有高考，你拼得过官二代吗？"
 
 
 def print_statistics(epoch, num_epochs, num_iters, gen_iter, global_step, loss):
-
+    
     print('='*100)
     print('Training log:')
     print('- Epoch: {}/{}'.format(epoch, num_epochs))
@@ -22,29 +22,29 @@ def print_statistics(epoch, num_epochs, num_iters, gen_iter, global_step, loss):
     print('- Loss: {}'.format(loss))
 
     print()
-
+    
     print("post:")
     print(observe_query)
     print("response:")
     out_text = responsor.response(observe_query)
     print(out_text)
-
+    
     print('='*100 + '\n')
 
 def save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, num_iters, loss, global_step):
     savetime = ('%s' % datetime.now()).split('.')[0]
     experiment_name = '{}_{}'.format(model_name, savetime)
 
-    checkpoint_path = save_gen_checkpoint(gen_opts, experiment_name, encoder, decoder, encoder_optim,
+    checkpoint_path = save_gen_checkpoint(gen_opts, experiment_name, encoder, decoder, encoder_optim, 
                                           decoder_optim, epoch, num_iters, loss, global_step)
-
+    
     print('='*100)
     print('Save checkpoint to "{}".'.format(checkpoint_path))
     print('='*100 + '\n')
 
 
 def train_gen(encoder, decoder, encoder_optim, decoder_optim,
-                num_epochs, gen_iter, save_every_step=5000, print_every_step=500):
+              num_epochs, gen_iter, save_every_step=5000, print_every_step=500):
 
     # For saving checkpoint
     if LOAD_GEN_CHECKPOINT:
@@ -79,7 +79,7 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
         for batch_id, batch_data in tqdm(enumerate(gen_iter)):
             # Unpack batch data
             src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens = batch_data
-
+            
             # Ignore the last batch if the batch size is less than that we set
             # if len(src_lens) < batch_size: continue
 
@@ -88,11 +88,11 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
             if max_seq_len > gen_opts.max_seq_len:
                 print('[!] Ignore batch: sequence length={} > max sequence length={}'.format(max_seq_len, gen_opts.max_seq_len))
                 continue
-
+                
             # Train.
             loss, num_words = gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens,
                                           encoder, decoder, encoder_optim, decoder_optim, gen_opts, USE_CUDA)
-
+            
             # Statistics.
             global_step += 1
             save_total_loss += loss
@@ -103,9 +103,9 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
             # Print statistics.
             if (batch_id + 1) % print_every_step == 0:
                 print_loss = print_total_loss / print_total_words
-
-                print_statistics(epoch, num_epochs, batch_id+1, gen_iter, global_step, print_loss)
-
+                
+                print_statistics(epoch, num_epochs, batch_id+1, gen_iter, global_step, print_loss)     
+                
                 print_total_loss = 0
                 print_total_words = 0
 
@@ -114,17 +114,17 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
             # Save checkpoint.
             if (batch_id + 1) % save_every_step == 0:
                 save_loss = save_total_loss / save_total_words
-
+                
                 save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, batch_id + 1, save_loss, global_step)
-
+                
                 save_total_loss = 0
                 save_total_words = 0
 
                 del save_loss
-
+                
             # Free memory
             del src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens, loss, num_words
-
+       
 
         num_iters = gen_iter.__len__()
 
@@ -132,42 +132,20 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
             print_loss = print_total_loss / print_total_words
 
             print_statistics(epoch, num_epochs, num_iters, gen_iter, global_step, print_loss)
-
+            
             print_total_loss = 0
             print_total_words = 0
 
             del print_loss
-
+        
         if num_iters % save_every_step != 0:
             save_loss = save_total_loss / save_total_words
 
             save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, num_iters, save_loss, global_step)
-
+            
             save_total_loss = 0
             save_total_words = 0
-
+            
             del save_loss
 
         del num_iters
-
-
-## -----------------------------------------------------------------------------------
-
-
-from models.encoder import encoder
-from models.decoder import decoder
-from optimizer.gen_optimizer import encoder_optim, decoder_optim
-from dataset.gen_dataloader import gen_iter
-
-print_every_step = gen_opts.print_every_step
-save_every_step = gen_opts.save_every_step
-num_epochs = gen_opts.num_epochs
-
-train_gen(encoder=encoder,
-          decoder=decoder,
-          encoder_optim=encoder_optim,
-          decoder_optim=decoder_optim,
-          num_epochs=num_epochs,
-          gen_iter=gen_iter,
-          save_every_step=save_every_step,
-          print_every_step=print_every_step)
