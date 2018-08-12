@@ -102,7 +102,7 @@ class Responsor(object):
             elif token_id == UNK and self.replace_unk:
                 # Replace unk by selecting the source token with the highest attention score.
                 score, idx = all_attention_weights[t].max(0)
-                token_id = src_sent[idx]
+                token_id = src_seqs[idx]
 
             out_seqs.append(token_id)
 
