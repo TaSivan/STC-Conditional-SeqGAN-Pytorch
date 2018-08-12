@@ -39,5 +39,5 @@ else:
     gen_opts.save_every_step = 5000
     
     # Configure vocabulary size
-    gen_opts.filter_vocab = False
+    gen_opts.filter_vocab = True    # Vocab size too large may cause the problem of CUDA error: out of memory
     gen_opts.max_vocab_size = 50000 # work only if filter_vocab is True
