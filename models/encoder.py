@@ -64,7 +64,8 @@ class Encoder(nn.Module):
             return torch.zeros(self.num_layers * self.num_directions, batch_size, self.hidden_size, device=device)
 
     def init_parameters(self):
-        for param in self.parameters():
+        for name, param in self.named_parameters():
+            if name.startswith("embedding"): continue
             if param.requires_grad == True:
                 if param.ndimension() >= 2:
                     nn.init.xavier_normal_(param)
