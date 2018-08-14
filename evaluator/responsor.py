@@ -75,7 +75,14 @@ class Responsor(object):
             src_seqs = src_seqs.cuda()
             src_lens = src_lens.cuda()
             input_seq = input_seq.cuda()
-        
+
+
+        # -------------------------------------
+        # Evaluation mode (disable dropout)
+        # -------------------------------------
+        self.encoder.eval()
+        self.decoder.eval()
+            
         # -------------------------------------
         # Forward encoder
         # -------------------------------------
@@ -117,14 +124,6 @@ class Responsor(object):
 
                 if self.USE_CUDA: 
                     input_seq = input_seq.cuda()
-        else:
-
-            # -------------------------------------
-            # Evaluation mode (disable dropout)
-            # -------------------------------------
-
-            self.encoder.eval()
-            self.decoder.eval()
 
 
         # Run through decoder one time step at a time.

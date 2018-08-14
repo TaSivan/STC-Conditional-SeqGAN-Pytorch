@@ -17,7 +17,12 @@ This code use the Sina Weibo dataset released by [STC@NTCIR13](http://ntcirstc.n
 1. `$ python scripts/embedding_combine.py`
     + execution time:  53.610
 
+## Train
++ `$ python main.py`
+
+## Run server
++ `$ FLASK_APP=server.py flask run --port <port>`
 
 ## Requirements
-+ PyTorch v0.4.1
 + Python 3.6
++ PyTorch v0.4.1

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>SeqGAN Chatbot</title>
+  <meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="stylesheet" href="{{ url_for('static', filename = 'main.css') }}" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+  <script src="https://unpkg.com/vue"></script>
+</head>
+<body>
+<div id="app">
+  <div class="container clearfix">
+    <div class="chat">
+      <div class="chat-header clearfix">
+        <img src="{{ url_for('static', filename = 'robot.png') }}" alt="avatar" />
+
+        <div class="chat-about">
+          <div class="chat-with">SeqGAN Chatbot</div>
+          <div class="chat-num-messages">Hi, let's chat :D</div>
+        </div>
+        <i class="fa fa-star"></i>
+      </div>
+
+      <div class="chat-history">
+        <ul>
+          <li class="clearfix" v-for="message in messages">
+            <div v-if="message.role=='other'">
+              <div class="message-data">
+                <span class="message-data-name"><i class="fa fa-circle online"></i> Bot</span>
+              </div>
+              <div class="message my-message">
+                {% raw %}{{ message.text }}{% endraw %}
+              </div>
+            </div>
+            <div v-else>
+              <div class="message-data align-right">
+                <span class="message-data-name" ></span>You <i class="fa fa-circle me"></i>
+              </div>
+              <div class="message other-message float-right">
+                {% raw %}{{ message.text }}{% endraw %}
+              </div>
+            </div>
+          </li>
+        </ul>
+
+      </div> <!-- end chat-history -->
+
+      <div class="chat-message clearfix">
+        <form v-on:submit.prevent="sendMessage">
+          <input v-model="input" type="text" name="message-to-send" id="message-to-send" autocomplete="off" placeholder ="Type your message" />
+          <button type="submit">Send</button>
+        </form>
+      </div> <!-- end chat-message -->
+
+    </div> <!-- end chat -->
+
+  </div> <!-- end container -->
+
+</div>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script type="text/javascript">
+  new Vue({
+    el: '#app',
+    methods: {
+      scrollToBottom: function() {
+        var objDiv = document.querySelector(".chat-history");
+        objDiv.scrollTop = objDiv.scrollHeight;
+      },
+      sendMessage: function() {
+        if (this.input.trim=='')
+          return;
+
+        this.messages.push({ role: 'me', text: this.input });
+        var self = this;
+        Vue.nextTick(function () {
+          self.scrollToBottom();
+        });
+
+        $.ajax({
+          url: '/response',
+          type: 'post',
+          data: JSON.stringify({ "input": this.input }),
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          contentType: "application/json",
+          success: function (data) {
+							console.log('hi',data);
+              self.messages.push({ role: 'other', text: data });
+              Vue.nextTick(function () {
+                self.scrollToBottom();
+              });
+          }
+        });
+
+        this.input = '';
+      }
+    },
+    data: {
+      input: '',
+      messages: [
+      ]
+    }
+  });
+</script>
+
+</body>
+</html>

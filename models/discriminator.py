@@ -117,8 +117,7 @@ class Discriminator(nn.Module):
         """
 
         ## (batch_size, 2 * num_filters_sum)
-        highway = self.highway(pred)
-        # pred = F.sigmoid(highway) *  F.relu(highway) + (1. - F.sigmoid(highway)) * pred
+        highway = self.highway(pred) 
         pred = torch.sigmoid(highway) *  F.relu(highway) + (1. - torch.sigmoid(highway)) * pred
 
         ## (batch_size, num_classes=2)

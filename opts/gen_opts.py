@@ -30,14 +30,14 @@ else:
 
     # Configure optimization
     gen_opts.learning_rate = 0.001
-    
+
     # Configure training
     gen_opts.max_seq_len = 100 # max sequence length to prevent OOM.
     gen_opts.batch_size = 16
     gen_opts.num_epochs = 1
     gen_opts.print_every_step = 500
     gen_opts.save_every_step = 5000
-    
+
     # Configure vocabulary size
-    gen_opts.filter_vocab = True    # Vocab size too large may cause the problem of CUDA error: out of memory
-    gen_opts.max_vocab_size = 50000 # work only if filter_vocab is True
+    gen_opts.filter_vocab = True        # Vocab size too large may cause the problem of CUDA error: out of memory
+    gen_opts.max_vocab_size = 50000    # work only if filter_vocab is True
