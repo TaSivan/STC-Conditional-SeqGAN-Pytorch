@@ -108,4 +108,4 @@ with open(SAVE_EMB_FILE, 'wb') as f:
     np.save(f, combine_embedding_model)
 
 with open(SAVE_IDX_FILE, 'wb') as f:
-    pickle.dump(id2w ,f)
+    pickle.dump(id2w, f)

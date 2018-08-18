@@ -95,7 +95,10 @@ class Decoder(nn.Module):
         # (batch_size, seq_len=1, vocab_size) => (batch_size, vocab_size)
         output = output.squeeze(1)
         
-        del src_lens
+        del input_seq, emb, decoder_output, attention_scores, attention_mask, \
+            context_vector, concat_input, concat_output, src_lens
+
+        torch.cuda.empty_cache()
         
         return output, decoder_hidden, attention_weights
 
@@ -111,7 +114,7 @@ class Decoder(nn.Module):
 ## -----------------------------------------------------------------------------------
 
 
-from helper import PAD ,SOS, EOS, UNK
+from helper import PAD, SOS, EOS, UNK
 from models.encoder import encoder
 from opts.gen_opts import LOAD_GEN_CHECKPOINT, gen_opts
 from opts.cuda_opts import USE_CUDA

@@ -79,7 +79,8 @@
         });
 
         $.ajax({
-          url: '/response',
+          url: 'http://sky.iis.sinica.edu.tw:9008/response',
+          // url: '/response',
           type: 'post',
           data: JSON.stringify({ "input": this.input }),
           headers: {

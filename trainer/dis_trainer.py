@@ -8,7 +8,11 @@ criterion = nn.NLLLoss(reduction='sum')
 
 
 def dis_trainer(query_seqs, response_seqs, labels, discriminator, dis_optim, USE_CUDA=True):
-
+    """             
+        - query_seqs:       (batch_size, max_seq_len>=dis_opts.conv_padding_len)
+        - response_seqs:    (batch_size, max_seq_len>=dis_opts.conv_padding_len)
+        - labels:           (batch,)
+    """
     batch_size = query_seqs.size(0)
     assert(batch_size == response_seqs.size(0))
     assert(batch_size == labels.size(0))
@@ -32,5 +36,9 @@ def dis_trainer(query_seqs, response_seqs, labels, discriminator, dis_optim, USE
     dis_optim.zero_grad()
     loss.backward()
     dis_optim.step()
+
+
+    del query_seqs, response_seqs, labels, pred
+    torch.cuda.empty_cache()
 
     return loss.item(), num_corrects

@@ -2,11 +2,11 @@ import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from collections import Counter
-import os, pickle
+import os, pickle, random
 
 from helper import REPO_DIR
 from util.AttrDict import AttrDict
-from helper import PAD ,SOS, EOS, UNK
+from helper import PAD, SOS, EOS, UNK
 
 class GenDataset(Dataset):
     def __init__(self, training_pairs, vocab=None, counter=None, filter_vocab=True, max_vocab_size=50000):
@@ -84,6 +84,17 @@ from opts.gen_opts import gen_opts
 with open(os.path.join(REPO_DIR, "training_pairs_seg.pkl"), 'rb') as f:
     training_pairs = pickle.load(f)
 
-gen_dataset = GenDataset(training_pairs=training_pairs,
-                         filter_vocab=gen_opts.filter_vocab,
-                         max_vocab_size=gen_opts.max_vocab_size)
+def get_gen_dataset(num_data=None):
+    if num_data:
+        assert(num_data <= len(training_pairs))
+        gen_dataset = GenDataset(training_pairs=random.sample(training_pairs, num_data),
+                                 filter_vocab=gen_opts.filter_vocab,
+                                 max_vocab_size=gen_opts.max_vocab_size)        
+    else:
+        gen_dataset = GenDataset(training_pairs=training_pairs,
+                                 filter_vocab=gen_opts.filter_vocab,
+                                 max_vocab_size=gen_opts.max_vocab_size)
+    
+    return gen_dataset
+
+gen_dataset = get_gen_dataset()

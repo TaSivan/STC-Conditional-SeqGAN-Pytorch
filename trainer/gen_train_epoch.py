@@ -1,3 +1,5 @@
+import torch
+
 from datetime import datetime
 from tqdm import tqdm
 
@@ -77,6 +79,7 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
     ### Ignore the last batch ?????
     for epoch in range(1, num_epochs+1):
         for batch_id, batch_data in tqdm(enumerate(gen_iter)):
+
             # Unpack batch data
             src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens = batch_data
             
@@ -124,7 +127,7 @@ def train_gen(encoder, decoder, encoder_optim, decoder_optim,
                 
             # Free memory
             del src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens, loss, num_words
-       
+            torch.cuda.empty_cache()       
 
         num_iters = gen_iter.__len__()
 

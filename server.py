@@ -2,6 +2,9 @@ from flask import Flask, request, render_template
 from flask_cors import CORS
 from opencc import OpenCC
 
+import torch
+torch.cuda.set_device(2)
+
 from evaluator.responsor import responsor
 
 app = Flask(__name__)

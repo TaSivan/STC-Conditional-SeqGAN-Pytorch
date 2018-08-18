@@ -136,11 +136,12 @@ class Discriminator(nn.Module):
 
 ## -----------------------------------------------------------------------------------
 
-from embedding.load_emb import embedding
+# from embedding.load_emb import embedding
+from models.decoder import decoder
 from opts.dis_opts import dis_opts
 from opts.cuda_opts import USE_CUDA
 
-discriminator = Discriminator(embedding=embedding,
+discriminator = Discriminator(embedding=decoder.embedding,
                               dropout=dis_opts.dropout, 
                               fixed_embeddings=dis_opts.fixed_embeddings)
 

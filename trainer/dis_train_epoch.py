@@ -21,7 +21,7 @@ def print_statistics(epoch, num_epochs, num_iters, dis_iter, global_step, loss, 
     print('='*100 + '\n')
 
 
-def save_checkpoint_training(discriminator, dis_optim, epoch, num_iters, loss, accuracy, global_step):
+def save_checkpoint_training(discriminator, dis_optim, epoch, num_iters, loss, accuracy, global_step, model_name):
     savetime = ('%s' % datetime.now()).split('.')[0]
     experiment_name = '{}_{}'.format(model_name, savetime)
     
@@ -33,7 +33,7 @@ def save_checkpoint_training(discriminator, dis_optim, epoch, num_iters, loss, a
     print('='*100 + '\n')
 
 
-def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=5000, print_every_step=500):
+def train_dis(discriminator, dis_optim, num_epochs, dis_iter, save_every_step=5000, print_every_step=500, model_name=model_name):
 
     global_step = 0
 
@@ -47,18 +47,16 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
 
     for epoch in range(1, num_epochs+1):
         for batch_id, batch_data in tqdm(enumerate(dis_iter)):
-            query_sents, response_sents, query_seqs, response_seqs, query_lens, response_lens, labels = batch_data
-            
-            ## does it matter???
-            # # Ignore batch if there is a long sequence.
-            # max_seq_len = max(query_lens + response_lens)
-            # if max_seq_len > dis_opts.max_seq_len:
-            #     print('[!] Ignore batch: sequence length={} > max sequence length={}'.format(max_seq_len, dis_opts.max_seq_len))
-            #     continue
-
+            """             
+                - query_seqs:       (batch_size, max_seq_len>=dis_opts.conv_padding_len)
+                - response_seqs:    (batch_size, max_seq_len>=dis_opts.conv_padding_len)
+                - labels:           [ 1 ] * batch_size 
+            """
+            query_seqs, response_seqs, labels = batch_data
+        
             batch_size = query_seqs.size(0)
 
-            # (batch,)
+            # [ 1 ] * batch_size -> (batch,)
             labels = torch.tensor(labels)
 
             loss, num_corrects = dis_trainer(query_seqs, response_seqs, labels, 
@@ -91,7 +89,7 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
                 save_accuracy = save_total_corrects / save_total_num_data
                 save_loss = save_total_loss / save_total_num_data
 
-                save_checkpoint_training(discriminator, dis_optim, epoch, batch_id + 1, save_loss, save_accuracy, global_step)
+                save_checkpoint_training(discriminator, dis_optim, epoch, batch_id + 1, save_loss, save_accuracy, global_step, model_name)
 
                 save_total_loss = 0
                 save_total_corrects = 0
@@ -100,7 +98,8 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
                 del save_accuracy, save_loss
 
 
-            del query_sents, response_sents, query_seqs, response_seqs, query_lens, response_lens, labels
+            del query_seqs, response_seqs, labels
+            torch.cuda.empty_cache()
 
 
         num_iters = dis_iter.__len__()
@@ -121,7 +120,7 @@ def train_dis(discriminator ,dis_optim, num_epochs, dis_iter, save_every_step=50
             save_accuracy = save_total_corrects / save_total_num_data
             save_loss = save_total_loss / save_total_num_data
 
-            save_checkpoint_training(discriminator, dis_optim, epoch, num_iters, save_loss, save_accuracy, global_step)
+            save_checkpoint_training(discriminator, dis_optim, epoch, num_iters, save_loss, save_accuracy, global_step, model_name)
 
             save_total_loss = 0
             save_total_corrects = 0

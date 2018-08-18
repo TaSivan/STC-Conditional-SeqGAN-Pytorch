@@ -49,5 +49,8 @@ def masked_cross_entropy(logits, target, length):
 
     # loss = losses.sum() / mask.float().sum()
     loss = losses.sum()
+
+    del logits_flat, log_probs_flat, target_flat, losses_flat, losses, mask
+    torch.cuda.empty_cache()
     
     return loss

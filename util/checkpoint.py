@@ -9,7 +9,7 @@ def load_checkpoint(checkpoint_path):
 
 
 def save_gen_checkpoint(opts, experiment_name, encoder, decoder, encoder_optim, decoder_optim,
-                    epoch, num_iters, loss, global_step):
+                        epoch, num_iters, loss, global_step):
     checkpoint = {
         'opts': opts,
         'global_step': global_step,

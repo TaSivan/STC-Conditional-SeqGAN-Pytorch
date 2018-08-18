@@ -8,7 +8,7 @@ from dataset.dis_dataloader import get_dis_iter
 from dataset.dis_collate_fn import dis_collate_fn
 
 from opts.gen_opts import gen_opts
-from opts.dis_opts import dis_opts
+from opts.GAN_opts import GAN_opts
 from opts.cuda_opts import USE_CUDA
 
 from util.checkpoint import save_gen_checkpoint
@@ -19,7 +19,8 @@ from trainer.dis_train_epoch import train_dis
 from evaluator.responsor import responsor
 
 
-model_name = 'SeqGAN-Generator'
+G_model_name = 'SeqGAN-Generator'
+D_model_name = 'SeqGAN-Discriminator'
 observe_query = "没有高考，你拼得过官二代吗？"
 
 
@@ -45,7 +46,7 @@ def print_statistics(epoch, num_epochs, num_iters, gen_iter, global_step, loss):
 
 def save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, num_iters, loss, global_step):
     savetime = ('%s' % datetime.now()).split('.')[0]
-    experiment_name = '{}_{}'.format(model_name, savetime)
+    experiment_name = '{}_{}'.format(G_model_name, savetime)
 
     checkpoint_path = save_gen_checkpoint(gen_opts, experiment_name, encoder, decoder, encoder_optim, 
                                           decoder_optim, epoch, num_iters, loss, global_step)
@@ -55,8 +56,8 @@ def save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epo
     print('='*100 + '\n')
 
 
-def train_adversarial(encoder, decoder, discriminator, encoder_optim, decoder_optim,
-                      dis_optim, gen_iter, gen_dataset, num_epochs, print_every_step, save_every_step):
+def train_adversarial(generator, discriminator, encoder_optim, decoder_optim, dis_optim,
+                      gen_iter, gen_dataset, num_epochs, print_every_step, save_every_step, num_rollout):
 
     save_total_words = 0
     print_total_words = 0
@@ -90,9 +91,8 @@ def train_adversarial(encoder, decoder, discriminator, encoder_optim, decoder_op
                     print('[!] Ignore batch: sequence length={} > max sequence length={}'.format(max_seq_len, gen_opts.max_seq_len))
                     continue
 
-                # Train.
-                loss, num_words = gen_trainer_PG(src_sents, src_seqs, src_lens, encoder, decoder, 
-                                                encoder_optim, decoder_optim, USE_CUDA=USE_CUDA)
+                loss, num_words = gen_trainer_PG(src_seqs, src_lens, generator, encoder_optim, 
+                                                 decoder_optim, num_rollout=num_rollout, USE_CUDA=True)
 
                 # Statistics.
                 global_step += 1
@@ -117,23 +117,27 @@ def train_adversarial(encoder, decoder, discriminator, encoder_optim, decoder_op
                 if (batch_id + 1) % save_every_step == 0:
                     save_loss = save_total_loss / save_total_words
                     
-                    save_checkpoint_training(encoder, decoder, encoder_optim, decoder_optim, epoch, batch_id + 1, save_loss, global_step)
+                    save_checkpoint_training(generator.encoder, generator.decoder, encoder_optim, 
+                                             decoder_optim, epoch, batch_id + 1, save_loss, global_step)
                     
                     save_total_loss = 0
                     save_total_words = 0
 
                     del save_loss
 
-                del loss, num_words
+                del src_sents, tgt_sents, src_seqs, tgt_seqs, src_lens, tgt_lens, loss, num_words
+                torch.cuda.empty_cache()
+                
 
             # D steps
             
-            # dis_iter = get_dis_iter()
-            dis_iter = get_dis_iter(gen_opts.batch_size * 25)
+            dis_iter = get_dis_iter(num_data=GAN_opts.batch_size * GAN_opts.d_step_repeat_times,
+                                    num_workers=1)
 
             train_dis(discriminator=discriminator,
                       dis_optim=dis_optim,
-                      num_epochs=dis_opts.adversarial_num_epoch,
+                      num_epochs=GAN_opts.dis_num_epoch,
                       dis_iter=dis_iter,
-                      save_every_step=50,
-                      print_every_step=25)
+                      save_every_step=GAN_opts.D_save_every_step,
+                      print_every_step=GAN_opts.D_print_every_step,
+                      model_name=D_model_name)

@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from helper import REPO_DIR
 from dataset.gen_dataset import gen_dataset
-from helper import PAD ,SOS, EOS, UNK
+from helper import PAD, SOS, EOS, UNK
 
 def load_emb(pretrained_emb, pretrained_w2id, vocab):
 

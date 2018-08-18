@@ -1,7 +1,7 @@
 import torch
 
 from loss.masked_cross_entropy import masked_cross_entropy
-from helper import PAD ,SOS, EOS, UNK
+from helper import PAD, SOS, EOS, UNK
 
 
 def gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens, encoder, 
@@ -59,8 +59,8 @@ def gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens, encoder,
     # -------------------------------------
     # Forward encoder
     # -------------------------------------
-    # encoder_outputs: (max_seq_len, batch_size=1, hidden_size)
-    # encoder_hidden:  (num_layers, batch_size=1, num_directions * hidden_size)
+    # encoder_outputs: (max_seq_len, batch_size, hidden_size)
+    # encoder_hidden:  (num_layers, batch_size, num_directions * hidden_size)
     # -------------------------------------
     encoder_outputs, encoder_hidden = encoder(src_seqs)
 
@@ -107,5 +107,9 @@ def gen_trainer(src_seqs, tgt_seqs, src_lens, tgt_lens, encoder,
     encoder_optim.step()
     decoder_optim.step()
     
-    # return loss.item(), attention_weights
-    return loss.item(), tgt_lens.sum().item()
+    num_words = tgt_lens.sum().item()
+
+    del src_seqs, tgt_seqs, src_lens, tgt_lens, input_seq, decoder_outputs
+    torch.cuda.empty_cache()
+
+    return loss.item(), num_words

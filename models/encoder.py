@@ -76,7 +76,7 @@ class Encoder(nn.Module):
 ## -----------------------------------------------------------------------------------
 
 
-from helper import PAD ,SOS, EOS, UNK
+from helper import PAD, SOS, EOS, UNK
 from opts.gen_opts import LOAD_GEN_CHECKPOINT, gen_opts
 from opts.cuda_opts import USE_CUDA
 
