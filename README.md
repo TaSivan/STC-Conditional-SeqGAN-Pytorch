@@ -23,9 +23,6 @@ This code use the Sina Weibo dataset released by [STC@NTCIR13](http://ntcirstc.n
 ## Run server
 + `$ FLASK_APP=server.py flask run --port <port>`
 
-## Demo Page (Beta ver.)
-+ http://sky.iis.sinica.edu.tw:9009/
-
 ## Requirements
 + Python 3.6
 + PyTorch v0.4.1
